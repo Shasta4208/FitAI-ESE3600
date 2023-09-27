@@ -1,0 +1,197 @@
+// For  tensor flow lite
+#include <TensorFlowLite.h>
+#include<ArduinoBLE.h>
+#include "tensorflow/lite/micro/micro_error_reporter.h"
+#include "tensorflow/lite/micro/micro_interpreter.h"
+#include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
+#include "tensorflow/lite/micro/all_ops_resolver.h"
+#include "tensorflow/lite/schema/schema_generated.h"
+#include "tensorflow/lite/version.h"
+#include "heart_rate_model_data.h"
+
+const char* polarH10ServiceUUID = "0000180d-0000-1000-8000-00805f9b34fb";
+const char* polarH10CharUUID = "00002a37-0000-1000-8000-00805f9b34fb";
+BLEDevice polarH10;
+
+// For tensor flow lite
+// Globals, used for compatibility with Arduino-style sketches.
+namespace {
+tflite::ErrorReporter* error_reporter = nullptr;
+const tflite::Model* model = nullptr;
+tflite::MicroInterpreter* interpreter = nullptr;
+TfLiteTensor* input = nullptr;
+
+// In order to use optimized tensorflow lite kernels, a signed int8_t quantized
+// model is preferred over the legacy unsigned model format. This means that
+// throughout this project, input images must be converted from unisgned to
+// signed format. The easiest and quickest way to convert from unsigned to
+// signed 8-bit integers is to subtract 128 from the unsigned value to get a
+// signed value.
+
+// An area of memory to use for input, output, and intermediate arrays.
+constexpr int kTensorArenaSize = 136 * 1024;
+static uint8_t tensor_arena[kTensorArenaSize];
+}  // namespace
+
+constexpr int num_readings = 80;
+constexpr int label_count = 4;
+const char* labels[label_count] = {"hard", "interval", "steady", "rest"};
+
+
+void setup()
+{
+  // For Heart Rate
+  Serial.begin(9600);
+  while (!Serial);
+
+  if (!BLE.begin()) {
+    Serial.println("Starting BLE failed!");
+    while (1);
+  }
+
+  Serial.println("BLE Central - Polar H10 Heart Rate Monitor");
+
+  BLE.scanForUuid(polarH10ServiceUUID);
+
+
+  // For Tensor Flow Lite
+  // Set up logging. Google style is to avoid globals or statics because of
+  // lifetime uncertainty, but since this has a trivial destructor it's okay.
+  // NOLINTNEXTLINE(runtime-global-variables)
+  static tflite::MicroErrorReporter micro_error_reporter;
+  error_reporter = &micro_error_reporter;
+
+  // Map the model into a usable data structure. This doesn't involve any
+  // copying or parsing, it's a very lightweight operation.
+  model = tflite::GetModel(g_heart_rate_model_data);
+  if (model->version() != TFLITE_SCHEMA_VERSION) {
+    TF_LITE_REPORT_ERROR(error_reporter,
+                         "Model provided is schema version %d not equal "
+                         "to supported version %d.",
+                         model->version(), TFLITE_SCHEMA_VERSION);
+    return;
+  }
+
+  // Pull in only the operation implementations we need.
+  // This relies on a complete list of all the ops needed by this graph.
+  // An easier approach is to just use the AllOpsResolver, but this will
+  // incur some penalty in code space for op implementations that are not
+  // needed by this graph.
+  //
+  static tflite::AllOpsResolver resolver;
+  // NOLINTNEXTLINE(runtime-global-variables)
+//  static tflite::MicroMutableOpResolver<5> micro_op_resolver;
+//  micro_op_resolver.AddAveragePool2D();
+//  micro_op_resolver.AddConv2D();
+//  micro_op_resolver.AddDepthwiseConv2D();
+//  micro_op_resolver.AddReshape();
+//  micro_op_resolver.AddSoftmax();
+
+  // Build an interpreter to run the model with.
+  // NOLINTNEXTLINE(runtime-global-variables)
+  static tflite::MicroInterpreter static_interpreter(
+      model, resolver, tensor_arena, kTensorArenaSize, error_reporter);
+  interpreter = &static_interpreter;
+
+  // Allocate memory from the tensor_arena for the model's tensors.
+  TfLiteStatus allocate_status = interpreter->AllocateTensors();
+  if (allocate_status != kTfLiteOk) {
+    TF_LITE_REPORT_ERROR(error_reporter, "AllocateTensors() failed");
+    return;
+  }
+
+
+}
+
+
+void loop()
+{
+  BLEDevice device = BLE.available();
+
+  if (device) {
+  String deviceName = device.localName();
+  if (deviceName.startsWith("Polar H10") && !polarH10.connected()) {
+    if (device.hasService(polarH10ServiceUUID)) {
+      if (!polarH10.connected()) {
+        polarH10 = device;
+        Serial.print("Found Polar H10: ");
+        Serial.println(polarH10.address());
+        BLE.stopScan();
+
+        if (polarH10.connect()) {
+          Serial.println("Connected to Polar H10");
+          if (polarH10.discoverAttributes()) {
+            Serial.println("Attributes discovered");
+
+            BLECharacteristic hrChar = polarH10.characteristic(polarH10CharUUID);
+
+            if (hrChar.canSubscribe()) {
+              hrChar.subscribe();
+              Serial.println("Subscribed to heart rate notifications");
+            } else {
+              Serial.println("Unable to subscribe to heart rate notifications");
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (polarH10.connected()) {
+    BLECharacteristic hrChar = polarH10.characteristic(polarH10CharUUID);
+    int count = 0;
+    uint8_t input_buf[80];
+    while (count < 80) {
+      if (hrChar.valueUpdated()) {
+        byte data[8];
+        int bytesRead = hrChar.readValue(data, sizeof(data));
+        if (bytesRead > 1) {
+          int bpm = data[1];
+          input_buf[count] = bpm;
+          count++;
+          Serial.print("Heart Rate: ");
+          Serial.print(bpm);
+          Serial.println(" BPM");
+        }
+      }
+      else {
+        BLE.scanForUuid(polarH10ServiceUUID);
+      }
+    }
+    for (int i = 0; i < 80; i++) {
+      Serial.print(input_buf[i]);
+    }
+    TfLiteTensor* model_input = interpreter->input(0);
+    for (int i = 0; i < num_readings; ++i) {
+      model_input->data.int8[i] = input_buf[i];
+    }
+
+
+
+  // Run the model on this input and make sure it succeeds.
+  if (kTfLiteOk != interpreter->Invoke()) {
+    TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed.");
+  }
+
+  TfLiteTensor* output = interpreter->output(0);
+
+  // Process the inference results.
+// Parse the model output
+    int8_t max_score;
+    int max_index;
+    for (int i = 0; i < label_count; ++i) {
+      const int8_t score = output->data.int8[i];
+      if ((i == 0) || (score > max_score)) {
+        max_score = score;
+        max_index = i;
+      }
+    }
+    
+    TF_LITE_REPORT_ERROR(error_reporter, "Found %s (%d)", labels[max_index], max_score);
+    
+
+  
+  }
+
+}
+}
