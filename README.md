@@ -35,7 +35,7 @@ Data Preprocessing:
 
 Interval:
 
-![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/8e675d59-8bda-4932-87f8-7ace77acc35c)
+![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/c3b59f73-e901-4878-8a82-93cfbf3d68f0)
 
 Steady State:
 
