@@ -4,7 +4,7 @@ Created by: Lars Finlayson and Cheryl Lim
 
 Introduction:
 
-Heart rate data has proven pivotal in many applications, especially in the healthcare industry. For instance, machine learning algorithms can be trained on large datasets of patient health records to predict heart rates and detect abnormalities. These predictions can help doctors diagnose and treat conditions such as arrhythmia, heart failure, and hypertension. It can also be used as a remote monitoring device to monitor patients with chronic heart conditions and alert healthcare providers for abnormalities.
+Heart rate data has proven pivotal in many applications, especially in the healthcare industry. For instance, machine learning algorithms can be trained on large datasets of patient health records to predict heart rates and detect abnormalities. These predictions can help doctors diagnose and treat arrhythmia, heart failure, and hypertension. It can also be used as a remote monitoring device to monitor patients with chronic heart conditions and alert healthcare providers for abnormalities.
 
 Our machine learning project instead focuses on the athletics industry. Our project aims to classify the types and intensity of athletes' workouts based on the user's heart rate. This system can provide athletes with valuable insights into their cardiovascular health, fitness level, and performance, which can help them optimize their training regimens and achieve their desired outcomes more efficiently and effectively.
 
@@ -35,29 +35,29 @@ Data Preprocessing:
 
 Interval:
 
-![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/c3b59f73-e901-4878-8a82-93cfbf3d68f0)
+![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/3fcfc734-a62d-45b6-9eb8-7f26268204f4)
 
 Steady State:
 
-![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/603796fb-8a90-46a2-8c68-e8c1f5b88d93)
+![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/8102f7ff-3a76-4f23-9181-9ce890d7db62)
 
 Hard:
 
-![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/759af4bb-aaf9-477e-8117-be40c9063953)
+![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/69efa964-e1af-482c-a3a7-3ee71329a93a)
 
 Rest (yellow portion only):
 
-![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/a5b6202b-ff26-4976-b10a-bf8f14b492f1)
+![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/25ea3884-75a9-4c3b-9418-95159d625833)
 
 
 The four graphs above give a good representation of the heart rate trends used to train the model to identify the type of workout. We noted that each type of heart rate trend has distinct features. For example, interval workouts have heart rate trends that peak and valley in short periods of time; hard workouts are mostly in the 200 beats per minute range and with sharp increases from low heart rates to 200 beats per minute; steady workouts usually have the heart rate staying at 150 beats per minute with very slight increases across long periods; resting heart rate is represented by the drastic decrease in heart rate from a high heart rate value. 
 
-However, we cannot obtain data from a single workout session that fits perfectly with one category. Each initial data set most likely contains heart rate trends belonging to more than one workout as more than one type of workout is done. Since we were dealing with raw data from daily training regimens, data preprocessing was essential to our project. 
+However, we cannot obtain data from a single workout session that fits perfectly with one category. Each initial data set most likely contains heart rate trends belonging to more than one workout as more than one type of workout is done. Data preprocessing was essential to our project since we were dealing with raw data from daily training regimens. 
 
 First, we plotted the graphs of all the heart rate data obtained and manually separated and labeled the different sections. An example is shown below.
 
-![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/9cba67c5-fb46-4d9d-99f9-9020074929bc)
- 
+![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/662e6567-295a-4ea4-abbc-361f85168b05)
+
 Yellow: Interval
 Pink: Rest
 Green: Hard
@@ -66,7 +66,7 @@ By manually splitting workout data to separate resting heart rate and warm-up he
 
 The next part of preprocessing is to ensure that all data in the dataset has the same length, n. This is because we want our final product to be able to predict the type of workout every n seconds and then give a percentage of the type of workouts done in that single training session instead of just providing one prediction for the entire workout. Since the user may do several types of workouts in each training session, we want the model to be able to capture that and give a more useful measure of exertion. 
 
-The length (n) chosen also plays an important role in model accuracy, this is because there is a tradeoff between using a small value of n, which ensures that the system predicts at a more frequent rate, and also allows for lower dimensionality data; versus a larger n value which is able to capture more features of the workout that distinguishes between the classes. After experimenting with different lengths, we found that the length of n = 80 gives the best model accuracy. Hence, each set of data is split up into lengths of 80 samples. Through this step, we changed the dataset from having 165 sets of data of varying lengths of samples to 724 sets of data with 80 samples each. Next, we split the 724 data sets into training, validation, and test sets, with 70% as training, 15% as validation, and 15% as test. 
+The length (n) chosen also plays an important role in model accuracy; this is because there is a tradeoff between using a small value of n, which ensures that the system predicts at a more frequent rate, and also allows for lower dimensionality data; versus a larger n value which is able to capture more features of the workout that distinguishes between the classes. After experimenting with different lengths, we found that the length of n = 80 gives the best model accuracy. Hence, each data set is split into lengths of 80 samples. Through this step, we changed the dataset from having 165 sets of data of varying lengths of samples to 724 sets of data with 80 samples each. Next, we split the 724 data sets into training, validation, and test sets, with 70% as training, 15% as validation, and 15% as test. 
 
 
 
@@ -86,7 +86,7 @@ model.add(Dense(units=16, activation='relu'))
 
 model.add(Dense(4, activation='softmax'))
 
-An important feature of this model is the use of an LSTM layer. We chose to use an LSTM model because our project aims to classify a sequence of time series data, in which the dependencies between data points are crucial information for the model to pick up. LSTMs are able to learn long-term dependencies between time steps of data and hence explain the significantly higher accuracy achieved compared to other models. We included the dropout layer to prevent overfitting. Due to the large dimensionality of our input data, we have to train the model for many epochs. The dropout layer prevents the model from overtraining. The two dense layers follow the dropout layer, which helps the model find relationships between the data values output by the LSTM layer. The output of the model is an array of prediction probabilities of all four classes, in which the class with the highest probability is the model’s prediction.
+An important feature of this model is the use of an LSTM layer. We chose to use an LSTM model because our project aims to classify a sequence of time series data, in which the dependencies between data points are crucial information for the model to pick up. LSTMs are able to learn long-term dependencies between time steps of data and hence explain the significantly higher accuracy achieved compared to other models. We included the dropout layer to prevent overfitting. Due to the large dimensionality of our input data, we have to train the model for many epochs. The dropout layer prevents the model from overtraining. The two dense layers follow the dropout layer, which helps the model find relationships between the data values output by the LSTM layer. The model's output is an array of prediction probabilities of all four classes, in which the class with the highest probability is the model’s prediction.
 
 The initial version of this model consists of the same layers but with a much larger number of units in a layer. The LSTM and Dense layers comprised 128 units, and the dropout parameter was 0.5. This model also had approximately the same accuracy but was too large to be quantized and deployed. We realized that lowering the number of units gives a significant decrease in model size while the model maintains good accuracy. Hence, in order to obtain a model as small as possible, we decreased the number of units per layer until the model no longer performs well.
 
@@ -99,18 +99,18 @@ We trained our final model for 1000 epochs, with a learning rate of 0.001 and �
 
 The training and validation accuracy is consistently at least 80% or more. The testing accuracy is 75%. The graph for training and validation accuracy is shown below. 
 
-![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/090cc7ab-510d-4dc6-b90e-e6c7103548dd)
+![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/c700f2ae-76eb-42ac-944d-08021adbe8e4)
 
 To better understand the classification accuracies in each class, we referred to the confusion matrix below.
 
-![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/7207ef92-70b4-4615-acc6-069be5b5cf13)
+![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/5158eeb6-6c5e-4703-ad2d-97389c334a68)
 
 In our project application, we are not too particular about having 100% accuracy in predicting a specific class. For example, interval workouts with slightly longer intervals can also be very similar to a hard workout in intensity. The most crucial aspect that we are focusing on is the ability of the model to distinguish a steady workout from an interval and a hard workout. From the confusion matrix, we observe that the model is able to do that decently well. Now that the model is able to predict 80-second workouts individually, we moved on to test the model according to its real-life functionality.
 
 Our system aims to take in a full arbitrary long workout’s heart rate data, and when feeding it into the system, the model will run inference on every 80 seconds of heart rate data. The user then can get an update on their exertion level by knowing their predicted workout type every 80 seconds. The number of each class predicted is tracked by the system, and the percentage of the classes is then reported to the user. Hence, at the end of the workout, the user will get a summary of how much of a certain class of workout they did in order to determine their level of exertion. 
 To test this functionality, we input a 10-minute steady workout. As shown in the picture below, the model ran an inference every 80 seconds, predicted the workout as steady throughout the 10 minutes, and correctly predicted the last 80 seconds as rest because the workout had ended before that.
  
-![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/984ed27f-6101-40a9-a179-8726c7f77f58)
+![image](https://github.com/Shasta4208/FitAI-ESE3600/assets/123327124/e7716a7f-4ae9-4e0d-b07c-a54f24f65e7e)
 
 Deployment/Hardware Details
 
